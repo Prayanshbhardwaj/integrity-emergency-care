@@ -1,0 +1,13 @@
+{
+  "appId": "com.integrity.emergencycare",
+  "appName": "Integrity Emergency Care",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#ffffff"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

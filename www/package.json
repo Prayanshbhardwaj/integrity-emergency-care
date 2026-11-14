@@ -1,0 +1,31 @@
+{
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "svg-path-bbox": "^2.1.0"
+  },
+  "name": "integrity-emergency-care-master",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "build:apk": "npx cap sync android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aditya678i/integrity-emergency-care.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/aditya678i/integrity-emergency-care/issues"
+  },
+  "homepage": "https://github.com/aditya678i/integrity-emergency-care#readme"
+}

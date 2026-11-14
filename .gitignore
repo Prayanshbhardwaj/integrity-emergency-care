@@ -1,3 +1,15 @@
-.vercel
+# Capacitor Android build outputs
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
 
-.vercel
+# Node
+node_modules/
+
+# Vercel
+.vercel/
+.env.local
+
+# Gradle cache
+.gradle/
