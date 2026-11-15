@@ -3,6 +3,8 @@
     "@capacitor/android": "^8.6.2",
     "@capacitor/cli": "^8.6.2",
     "@capacitor/core": "^8.6.2",
+    "@capacitor/geolocation": "^8.2.4",
+    "sharp": "^0.35.5",
     "svg-path-bbox": "^2.1.0"
   },
   "name": "integrity-emergency-care-master",

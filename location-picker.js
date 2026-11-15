@@ -137,26 +137,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function useGPSLocation() {
-    if (navigator.geolocation) {
-        document.getElementById('loc-search-input').value = "Getting GPS location...";
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                currentPickerLat = position.coords.latitude;
-                currentPickerLon = position.coords.longitude;
-                if (pickerMap) {
-                    pickerMap.flyTo([currentPickerLat, currentPickerLon], 16);
-                }
-            },
-            (error) => {
-                console.error("GPS error:", error);
-                alert("Could not get GPS location. Please allow location access.");
-                document.getElementById('loc-search-input').value = "";
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-    } else {
-        alert("Geolocation is not supported by your browser");
+async function useGPSLocation() {
+    const input = document.getElementById('loc-search-input');
+    if (input) input.value = "Getting accurate GPS location...";
+    
+    try {
+        let coords;
+        if (typeof window.getAccuratePosition === 'function') {
+            coords = await window.getAccuratePosition();
+        } else if (navigator.geolocation) {
+            coords = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                    reject,
+                    { enableHighAccuracy: true, timeout: 15000 }
+                );
+            });
+        }
+        
+        if (coords) {
+            currentPickerLat = coords.lat;
+            currentPickerLon = coords.lon;
+            if (pickerMap) {
+                pickerMap.flyTo([currentPickerLat, currentPickerLon], 16);
+            }
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lon}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (input) {
+                        input.value = (data && data.display_name) ? data.display_name : `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
+                    }
+                })
+                .catch(() => {
+                    if (input) input.value = `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
+                });
+        }
+    } catch (err) {
+        console.error("GPS error:", err);
+        alert("Could not get GPS location. Please ensure location is enabled.");
+        if (input) input.value = "";
     }
 }
 

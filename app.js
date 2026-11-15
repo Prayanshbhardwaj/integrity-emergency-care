@@ -377,88 +377,141 @@ function goToPatientHospitals(emergencyType = 'Other') {
     }
 }
 
-function requestPatientLocation() {
+// Robust accurate location provider: Capacitor Native GPS -> Browser GPS -> IP Fallback
+window.getAccuratePosition = async function() {
+    // 1. Try Capacitor Native Geolocation plugin (prompts Android native permissions dialog!)
+    if (window.Capacitor && window.Capacitor.isPluginAvailable && window.Capacitor.isPluginAvailable('Geolocation')) {
+        try {
+            console.log('Requesting location via Capacitor Native Geolocation...');
+            const { Geolocation } = window.Capacitor.Plugins;
+            try {
+                await Geolocation.requestPermissions();
+            } catch (pErr) {
+                console.warn('requestPermissions warning:', pErr);
+            }
+            const pos = await Geolocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 3000
+            });
+            if (pos && pos.coords && typeof pos.coords.latitude === 'number') {
+                console.log('Got Capacitor GPS location:', pos.coords.latitude, pos.coords.longitude);
+                return { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            }
+        } catch (capErr) {
+            console.warn('Capacitor native geolocation error:', capErr);
+        }
+    }
+
+    // 2. Try standard Browser Geolocation with high accuracy
+    if (navigator.geolocation) {
+        try {
+            const pos = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    resolve,
+                    reject,
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
+                );
+            });
+            if (pos && pos.coords && typeof pos.coords.latitude === 'number') {
+                console.log('Got Browser GPS location:', pos.coords.latitude, pos.coords.longitude);
+                return { lat: pos.coords.latitude, lon: pos.coords.longitude };
+            }
+        } catch (navErr) {
+            console.warn('Navigator geolocation error:', navErr);
+        }
+    }
+
+    // 3. Fallback to IP-based Geolocation if GPS fails or turned off
+    try {
+        console.log('Attempting IP-based geolocation fallback...');
+        const ipRes = await fetch('https://ipapi.co/json/');
+        if (ipRes.ok) {
+            const ipData = await ipRes.json();
+            if (ipData && ipData.latitude && ipData.longitude) {
+                console.log('Got IP location:', ipData.city, ipData.latitude, ipData.longitude);
+                return {
+                    lat: ipData.latitude,
+                    lon: ipData.longitude,
+                    isIpFallback: true,
+                    city: ipData.city,
+                    region: ipData.region
+                };
+            }
+        }
+    } catch (ipErr) {
+        console.warn('IP geolocation failed:', ipErr);
+    }
+
+    // 4. Default fallback
+    const lat = typeof currentPickerLat !== 'undefined' ? currentPickerLat : 28.6139;
+    const lon = typeof currentPickerLon !== 'undefined' ? currentPickerLon : 77.2090;
+    return { lat, lon, isFallback: true };
+};
+
+async function requestPatientLocation() {
     const locCity = document.querySelector('.patient-location-header .loc-city');
     const locAddress = document.querySelector('.patient-location-header .loc-full-address');
     if (!locCity || !locAddress) return;
 
-    if (navigator.geolocation) {
-        locCity.textContent = "Requesting...";
-        locAddress.textContent = "Waiting for permission...";
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                locCity.textContent = "Fetching...";
-                locAddress.textContent = "Getting address details...";
-                
-                // Sync with location picker if it exists
-                if (typeof currentPickerLat !== 'undefined') {
-                    currentPickerLat = lat;
-                    currentPickerLon = lon;
-                }
-                
-                // Fetch nearby hospitals using Overpass API
-                if (typeof fetchNearbyHospitals === 'function') {
-                    fetchNearbyHospitals(lat, lon);
-                }
-                
-                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data && data.display_name) {
-                            // Extract state for the big text
-                            const state = data.address.state || data.address.state_district || data.address.city || data.address.town || data.address.county || data.address.region || "Unknown State";
-                            locCity.textContent = state;
-                            
-                            // Extract full address for the small text
-                            locAddress.textContent = data.display_name;
-                        } else {
-                            locCity.textContent = "Location";
-                            locAddress.textContent = "Unknown location";
-                        }
-                    })
-                    .catch(err => {
-                        console.error('Reverse geocoding error:', err);
-                        locCity.textContent = "Error";
-                        locAddress.textContent = "Location details unavailable";
-                    });
-            },
-            (error) => {
-                console.error('Geolocation error:', error);
-                locCity.textContent = "Location Denied";
-                locAddress.textContent = "Using fallback location";
-                
-                // Fallback to default location or previously picked location
-                const lat = typeof currentPickerLat !== 'undefined' ? currentPickerLat : 28.6139;
-                const lon = typeof currentPickerLon !== 'undefined' ? currentPickerLon : 77.2090;
-                
-                if (typeof fetchNearbyHospitals === 'function') {
-                    fetchNearbyHospitals(lat, lon);
-                }
-                
-                // Fetch the address for fallback so it doesn't look broken
-                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data && data.display_name) {
-                            const state = data.address.state || data.address.state_district || data.address.city || data.address.town || data.address.county || data.address.region || "Unknown State";
-                            locCity.textContent = state;
-                            locAddress.textContent = data.display_name;
-                        }
-                    });
-            },
-            { timeout: 10000 }
-        );
-    } else {
-        // Geolocation not supported fallback
-        const lat = typeof currentPickerLat !== 'undefined' ? currentPickerLat : 28.6139;
-        const lon = typeof currentPickerLon !== 'undefined' ? currentPickerLon : 77.2090;
-        
+    locCity.textContent = "Locating...";
+    locAddress.textContent = "Detecting current location...";
+
+    try {
+        const coords = await window.getAccuratePosition();
+        const lat = coords.lat;
+        const lon = coords.lon;
+
+        // Sync with location picker if it exists
+        if (typeof currentPickerLat !== 'undefined') {
+            currentPickerLat = lat;
+            currentPickerLon = lon;
+        }
+
+        // Fetch nearby hospitals using Overpass API
         if (typeof fetchNearbyHospitals === 'function') {
             fetchNearbyHospitals(lat, lon);
         }
-        locAddress.textContent = "Default Location";
+
+        locCity.textContent = "Fetching address...";
+        locAddress.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+        // Reverse geocoding via Nominatim
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.display_name) {
+                    const addr = data.address || {};
+                    const state = addr.city || addr.town || addr.village || addr.suburb || addr.state_district || addr.state || "Location";
+                    locCity.textContent = state;
+                    locAddress.textContent = data.display_name;
+                } else if (coords.city) {
+                    locCity.textContent = coords.city;
+                    locAddress.textContent = `${coords.city}, ${coords.region || ''}`;
+                } else {
+                    locCity.textContent = "Location Detected";
+                    locAddress.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                }
+            })
+            .catch(err => {
+                console.error('Reverse geocoding error:', err);
+                if (coords.city) {
+                    locCity.textContent = coords.city;
+                    locAddress.textContent = `${coords.city}, ${coords.region || ''}`;
+                } else {
+                    locCity.textContent = "Location Detected";
+                    locAddress.textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+                }
+            });
+    } catch (err) {
+        console.error('requestPatientLocation error:', err);
+        locCity.textContent = "Location";
+        locAddress.textContent = "Location details unavailable";
+        const lat = typeof currentPickerLat !== 'undefined' ? currentPickerLat : 28.6139;
+        const lon = typeof currentPickerLon !== 'undefined' ? currentPickerLon : 77.2090;
+        if (typeof fetchNearbyHospitals === 'function') {
+            fetchNearbyHospitals(lat, lon);
+        }
     }
 }
 
