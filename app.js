@@ -45,6 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Add active class to trigger staggered animations of role cards
                     setTimeout(() => {
                         roleScreen.classList.add('role-active');
+                        // Request location right when role screen is displayed
+                        if (typeof window.getAccuratePosition === 'function') {
+                            window.getAccuratePosition().catch(e => console.warn(e));
+                        }
                     }, 50);
                 }
             }, 2000); // Give it time to slide in and be seen for a moment
@@ -339,6 +343,16 @@ function goToEmergencyType() {
         roleScreen.classList.remove('active-view');
         emergencyTypeScreen.classList.add('active-view');
     }
+
+    // Immediately trigger location request so user is asked for permission early
+    if (typeof window.getAccuratePosition === 'function') {
+        window.getAccuratePosition().then(coords => {
+            if (coords && coords.lat) {
+                currentPickerLat = coords.lat;
+                currentPickerLon = coords.lon;
+            }
+        }).catch(e => console.warn(e));
+    }
 }
 
 let currentPatientEmergencyType = 'Other';
@@ -425,11 +439,11 @@ window.getAccuratePosition = async function() {
     // 3. Fallback to IP-based Geolocation if GPS fails or turned off
     try {
         console.log('Attempting IP-based geolocation fallback...');
-        const ipRes = await fetch('https://ipapi.co/json/');
+        const ipRes = await fetch('https://ipwho.is/');
         if (ipRes.ok) {
             const ipData = await ipRes.json();
-            if (ipData && ipData.latitude && ipData.longitude) {
-                console.log('Got IP location:', ipData.city, ipData.latitude, ipData.longitude);
+            if (ipData && ipData.success !== false && ipData.latitude && ipData.longitude) {
+                console.log('Got IP location from ipwho.is:', ipData.city, ipData.latitude, ipData.longitude);
                 return {
                     lat: ipData.latitude,
                     lon: ipData.longitude,
@@ -440,7 +454,22 @@ window.getAccuratePosition = async function() {
             }
         }
     } catch (ipErr) {
-        console.warn('IP geolocation failed:', ipErr);
+        console.warn('ipwho.is failed, trying ipapi.co:', ipErr);
+        try {
+            const ipRes2 = await fetch('https://ipapi.co/json/');
+            if (ipRes2.ok) {
+                const ipData2 = await ipRes2.json();
+                if (ipData2 && ipData2.latitude && ipData2.longitude) {
+                    return {
+                        lat: ipData2.latitude,
+                        lon: ipData2.longitude,
+                        isIpFallback: true,
+                        city: ipData2.city,
+                        region: ipData2.region
+                    };
+                }
+            }
+        } catch (e2) {}
     }
 
     // 4. Default fallback
