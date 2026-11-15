@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Integrity Emergency Care</string>
-    <string name="title_activity_main">Integrity Emergency Care</string>
+    <string name="app_name">Emergency Saarthi</string>
+    <string name="title_activity_main">Emergency Saarthi</string>
     <string name="package_name">com.integrity.emergencycare</string>
     <string name="custom_url_scheme">com.integrity.emergencycare</string>
 </resources>

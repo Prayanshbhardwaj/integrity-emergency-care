@@ -1,7 +1,7 @@
 {
   "appId": "com.integrity.emergencycare",
-  "appName": "Integrity Emergency Care",
-  "webDir": ".",
+  "appName": "Emergency Saarthi",
+  "webDir": "www",
   "bundledWebRuntime": false,
   "android": {
     "allowMixedContent": true,

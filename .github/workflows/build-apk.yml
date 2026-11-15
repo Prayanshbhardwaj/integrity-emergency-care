@@ -44,23 +44,23 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk IntegrityEmergencyCare.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk EmergencySaarthi.apk
 
       - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: "Integrity Emergency Care v1.0.${{ github.run_number }}"
+          name: "Emergency Saarthi v1.0.${{ github.run_number }}"
           body: |
-            ## 📱 Integrity Emergency Care - Android App
+            ## 📱 Emergency Saarthi - Android App
 
             ### ⬇️ Download karne ke liye:
-            Neeche **IntegrityEmergencyCare.apk** pe click karo
+            Neeche **EmergencySaarthi.apk** pe click karo
 
             ### 📲 Install kaise karein:
             1. APK download karo
             2. Phone mein **Settings → Security → Unknown Sources** enable karo
             3. Downloaded APK open karo aur install karo
-          files: IntegrityEmergencyCare.apk
+          files: EmergencySaarthi.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
