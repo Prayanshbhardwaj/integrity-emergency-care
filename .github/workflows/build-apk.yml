@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -41,41 +43,24 @@ jobs:
           cd android
           ./gradlew assembleDebug --no-daemon
 
-      - name: Copy APK to public folder
-        run: |
-          mkdir -p apk-host
-          cp android/app/build/outputs/apk/debug/app-debug.apk apk-host/IntegrityEmergencyCare.apk
-          cat > apk-host/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Download Integrity Emergency Care</title>
-            <style>
-              body { font-family: Arial, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f0f4f8; }
-              .card { background: white; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 400px; }
-              h1 { color: #1E3A8A; margin-bottom: 8px; }
-              p { color: #666; margin-bottom: 24px; }
-              .btn { display: inline-block; background: #1E3A8A; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-size: 1.1rem; font-weight: bold; }
-              .note { font-size: 0.8rem; color: #999; margin-top: 16px; }
-            </style>
-          </head>
-          <body>
-            <div class="card">
-              <h1>🏥 Integrity Emergency Care</h1>
-              <p>Download and install the Android app on your phone</p>
-              <a href="IntegrityEmergencyCare.apk" class="btn">⬇️ Download APK</a>
-              <p class="note">Enable "Unknown Sources" in Settings before installing</p>
-            </div>
-          </body>
-          </html>
-          EOF
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk IntegrityEmergencyCare.apk
 
-      - name: Deploy APK to Vercel
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "Integrity Emergency Care v1.0.${{ github.run_number }}"
+          body: |
+            ## 📱 Integrity Emergency Care - Android App
+
+            ### ⬇️ Download karne ke liye:
+            Neeche **IntegrityEmergencyCare.apk** pe click karo
+
+            ### 📲 Install kaise karein:
+            1. APK download karo
+            2. Phone mein **Settings → Security → Unknown Sources** enable karo
+            3. Downloaded APK open karo aur install karo
+          files: IntegrityEmergencyCare.apk
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          npm install -g vercel
-          cd apk-host
-          vercel deploy --prod --yes --token $VERCEL_TOKEN --name integrity-apk-download
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
